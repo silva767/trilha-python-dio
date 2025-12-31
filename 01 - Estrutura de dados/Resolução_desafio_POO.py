@@ -187,11 +187,75 @@ def menu():
     => """
     return input(textwrap.dedent(menu))
 
+def filtrar_cliente(cpf, clientes):
+    clientes_filtrados = [cliente for cliente in clientes if cliente.cpf == cpf]
+    return clientes_filtrados[0] if clientes_filtrados else None
 
+def recuperar_conta_cliente(cliente):
+    if not cliente.contas:
+        print("\n@@@ Cliente não possui conta! @@@")
+        return
+    # FIXME: não permite cliente escolher a conta
+    return cliente.contas[0]
 
+def depositar(clientes):
+    cpf = input("Informe o CPF do cliente: ")
+    cliente = filtrar_cliente(cpf, clientes)
 
-def exibir_extrato(saldo, /, *, extrato):
+    if not cliente:
+        print("\n@@@ Cliente não encontrado! @@@")
+        return
+
+    valor = float(input("Informe o valor do depósito:"))
+    transacao = Deposito(valor)
+
+    conta = recuperar_conta_cliente(cliente)
+    if not conta:
+        return
+
+    cliente.realizar_transacao(conta, transacao)
+
+def sacar(clientes):
+    cpf = input("Informe o CPF do cliente: ")
+    cliente = filtrar_cliente(cpf, clientes)
+
+    if not cliente:
+        print("\n@@@ Cliente não encontrado! @@@")
+        return
+
+    valor = float(input("Informe o valor do saque:"))
+    transacao = Saque(valor)
+
+    conta = recuperar_conta_cliente(cliente)
+    if not conta:
+        return
+
+    cliente.realizar_transacao(conta, transacao)
+
+def exibir_extrato(clientes):
+    cpf = input("Informe o CPF do cliente: ")
+    cliente = filtrar_cliente(cpf, clientes)
+
+    if not cliente:
+        print("\n@@@ Cliente não encontrado! @@@")
+        return
+
+    conta = recuperar_conta_cliente(cliente)
+    if not conta:
+        return
+        
     print("\n================ EXTRATO ================")
+    transacoes = conta.historico.transacoes
+
+    extrato = ""
+    if not transacoes:
+        extrato = "Não foram realizadas movimentações."
+    else:
+        for transacao in transacoes:
+            extrato += f"\n{transacao["tipo"]}:\n\tR${transacao["valor"]:.2f}"
+
+    print(extrato)
+    print(f"\nSaldo:\t\tR$ {conta.saldo:.2f}")
     print("Não foram realizadas movimentações." if not extrato else extrato)
     print(f"\nSaldo:\t\tR$ {saldo:.2f}")
     print("==========================================")
@@ -233,13 +297,7 @@ def criar_conta(agencia, numero_conta, usuarios):
 
 
 def main():
-    LIMITE_SAQUES = 3
-    AGENCIA = "0001"
 
-    saldo = 0
-    limite = 500
-    extrato = ""
-    numero_saques = 0
     usuarios = []
     contas = []
 
@@ -247,34 +305,20 @@ def main():
         opcao = menu()
 
         if opcao == "d":
-            valor = float(input("Informe o valor do depósito: "))
-
-            saldo, extrato = depositar(saldo, valor, extrato)
+            depositar(clientes)
 
         elif opcao == "s":
-            valor = float(input("Informe o valor do saque: "))
-
-            saldo, extrato = sacar(
-                saldo=saldo,
-                valor=valor,
-                extrato=extrato,
-                limite=limite,
-                numero_saques=numero_saques,
-                limite_saques=LIMITE_SAQUES,
-            )
+            sacar(clientes)
 
         elif opcao == "e":
-            exibir_extrato(saldo, extrato=extrato)
+            exibir_extrato(clientes)
 
         elif opcao == "nu":
-            criar_usuario(usuarios)
+            criar_usuario(clientes)
 
         elif opcao == "nc":
             numero_conta = len(contas) + 1
-            conta = criar_conta(AGENCIA, numero_conta, usuarios)
-
-            if conta:
-                contas.append(conta)
+            criar_conta(numero_conta, clientes, contas)
 
         elif opcao == "lc":
             listar_contas(contas)
